@@ -1,4 +1,4 @@
-let CACHE_STATIC_NAME = "static-2";
+let CACHE_STATIC_NAME = "static-3";
 let CACHE_DYNAMIC_NAME = "dynamic-v2";
 
 self.addEventListener("install", (event) => {
@@ -9,6 +9,7 @@ self.addEventListener("install", (event) => {
       return cache.addAll([
         "/",
         "/index.html",
+        "/offline.html",
         "/src/js/app.js",
         "/src/js/feed.js",
         "/src/js/promise.js",
@@ -40,28 +41,85 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// cache then fetch
+// self.addEventListener("fetch", (event) => {
+//   event.respondWith(
+//     caches.match(event.request).then((response) => {
+//       //cache hit - return response
+//       if (response) {
+//         return response;
+//       }
+//       return fetch(event.request)
+//         .then((response) => {
+//           // Check if we received a valid response
+//           if (
+//             !response ||
+//             response.status !== 200 ||
+//             response.type !== "basic"
+//           ) {
+//             return response; //null
+//           }
+
+//           // need to return 2 stream, one for cache, the other for the return
+//           var responseToCache = response.clone();
+
+//           caches.open(CACHE_DYNAMIC_NAME).then((cache) => {
+//             cache.put(event.request, responseToCache);
+//           });
+
+//           return response;
+//         })
+//         .catch((err) => {
+//           return cache.match("/offLine.html");
+//         });
+//     })
+//   );
+// });
+
+// cache all fetchs
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      //cache hit - return response
-      if (response) {
-        return response;
-      }
-      return fetch(event.request).then((response) => {
-        // Check if we received a valid response
-        if (!response || response.status !== 200 || response.type !== "basic") {
-          return response; //null
-        }
+  let url = "https://httpbin.org/get";
 
-        // need to return 2 stream, one for cache, the other for the return
-        var responseToCache = response.clone();
-
-        caches.open(CACHE_DYNAMIC_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+  if (event.request.url.indexOf(url) > -1) {
+    event.respondWith(
+      cache.open(CACHE_DYNAMIC_NAME).then((cache) => {
+        return fetch(event.request).then((response) => {
+          cache.put(event.request, response.clone());
+          return response;
         });
+      })
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        //cache hit - return response
+        if (response) {
+          return response;
+        }
+        return fetch(event.request)
+          .then((response) => {
+            // Check if we received a valid response
+            if (
+              !response ||
+              response.status !== 200 ||
+              response.type !== "basic"
+            ) {
+              return response; //null
+            }
 
-        return response;
-      });
-    })
-  );
+            // need to return 2 stream, one for cache, the other for the return
+            var responseToCache = response.clone();
+
+            caches.open(CACHE_DYNAMIC_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+
+            return response;
+          })
+          .catch((err) => {
+            return cache.match("/offline.html");
+          });
+      })
+    );
+  }
 });
