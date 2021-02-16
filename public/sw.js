@@ -1,27 +1,28 @@
-let CACHE_STATIC_NAME = "static-3";
-let CACHE_DYNAMIC_NAME = "dynamic-v2";
+const CACHE_STATIC_NAME = "static-3";
+const CACHE_DYNAMIC_NAME = "dynamic-v2";
+const STATIC_FILES = [
+  "/",
+  "/index.html",
+  "/offline.html",
+  "/src/js/app.js",
+  "/src/js/feed.js",
+  "/src/js/promise.js",
+  "/src/js/fetch.js",
+  "/src/js/material.min.js",
+  "/src/css/app.css",
+  "/src/css/feed.css",
+  "/src/images/main-image.jpg",
+  "https://fonts.googleapis.com/css?family=Roboto:400,700",
+  "https://fonts.googleapis.com/icon?family=Material+Icons",
+  "https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css",
+];
 
 self.addEventListener("install", (event) => {
   console.log("service work installed...", event);
   event.waitUntil(
     caches.open(CACHE_STATIC_NAME).then((cache) => {
       console.log("open cache");
-      return cache.addAll([
-        "/",
-        "/index.html",
-        "/offline.html",
-        "/src/js/app.js",
-        "/src/js/feed.js",
-        "/src/js/promise.js",
-        "/src/js/fetch.js",
-        "/src/js/material.min.js",
-        "/src/css/app.css",
-        "/src/css/feed.css",
-        "/src/images/main-image.jpg",
-        "https://fonts.googleapis.com/css?family=Roboto:400,700",
-        "https://fonts.googleapis.com/icon?family=Material+Icons",
-        "https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css",
-      ]);
+      return cache.addAll(STATIC_FILES);
     })
   );
 });
@@ -76,19 +77,43 @@ self.addEventListener("activate", (event) => {
 //   );
 // });
 
+function trimCache(cacheName, maxItems) {
+  caches.open(cacheName).then((cache) => {
+    return cache.keys().then((keys) => {
+      if (keys > maxItems) {
+        cache.delete(cache[0]).then(trimCache(cacheName, maxItems));
+      }
+    });
+  });
+}
+
+function isInArray(string, array) {
+  var cachePath;
+  if (string.indexOf(self.origin) === 0) {
+    // request targets domain where we serve the page from (i.e. NOT a CDN)
+    console.log("matched ", string);
+    cachePath = string.substring(self.origin.length); // take the part of the URL AFTER the domain (e.g. after localhost:8080)
+  } else {
+    cachePath = string; // store the full request (for CDNs)
+  }
+  return array.indexOf(cachePath) > -1;
+}
+
 // cache all fetchs
 self.addEventListener("fetch", (event) => {
   let url = "https://httpbin.org/get";
 
   if (event.request.url.indexOf(url) > -1) {
     event.respondWith(
-      cache.open(CACHE_DYNAMIC_NAME).then((cache) => {
+      caches.open(CACHE_DYNAMIC_NAME).then((cache) => {
         return fetch(event.request).then((response) => {
           cache.put(event.request, response.clone());
           return response;
         });
       })
     );
+  } else if (isInArray(event.request.url, STATIC_FILES)) {
+    event.respondWith(caches.match(event.request));
   } else {
     event.respondWith(
       caches.match(event.request).then((response) => {
@@ -117,7 +142,14 @@ self.addEventListener("fetch", (event) => {
             return response;
           })
           .catch((err) => {
-            return cache.match("/offline.html");
+            return caches.open(CACHE_STATIC_NAME).then((cache) => {
+              console.log("offline");
+              if (
+                event.request.headers.get("accept").indexOf("text/html") !== -1
+              ) {
+                return cache.match("/offline.html");
+              }
+            });
           });
       })
     );
