@@ -1,16 +1,22 @@
-const CACHE_STATIC_NAME = "static-3";
-const CACHE_DYNAMIC_NAME = "dynamic-v2";
+// import { openDB, deleteDB, wrap, unwrap } from "idb";
+importScripts("/src/js/idb.js");
+importScripts("/src/js/utility.js");
+
+const CACHE_STATIC_NAME = "static-5";
+const CACHE_DYNAMIC_NAME = "dynamic-v5";
 const STATIC_FILES = [
   "/",
   "/index.html",
   "/offline.html",
   "/src/js/app.js",
   "/src/js/feed.js",
+  "/src/js/idb.js",
   "/src/js/promise.js",
   "/src/js/fetch.js",
   "/src/js/material.min.js",
   "/src/css/app.css",
   "/src/css/feed.css",
+  "https://jsonplaceholder.typicode.com/posts",
   "/src/images/main-image.jpg",
   "https://fonts.googleapis.com/css?family=Roboto:400,700",
   "https://fonts.googleapis.com/icon?family=Material+Icons",
@@ -91,7 +97,7 @@ function isInArray(string, array) {
   var cachePath;
   if (string.indexOf(self.origin) === 0) {
     // request targets domain where we serve the page from (i.e. NOT a CDN)
-    console.log("matched ", string);
+    //console.log("matched ", string);
     cachePath = string.substring(self.origin.length); // take the part of the URL AFTER the domain (e.g. after localhost:8080)
   } else {
     cachePath = string; // store the full request (for CDNs)
@@ -99,17 +105,23 @@ function isInArray(string, array) {
   return array.indexOf(cachePath) > -1;
 }
 
-// cache all fetchs
+// save to indexedDB
 self.addEventListener("fetch", (event) => {
-  let url = "https://httpbin.org/get";
+  let url = "https://jsonplaceholder.typicode.com/posts";
 
   if (event.request.url.indexOf(url) > -1) {
     event.respondWith(
-      caches.open(CACHE_DYNAMIC_NAME).then((cache) => {
-        return fetch(event.request).then((response) => {
-          cache.put(event.request, response.clone());
-          return response;
+      fetch(event.request).then((response) => {
+        let cloneRes = response.clone();
+        deleteAllData("posts").then(() => {
+          cloneRes.json().then((data) => {
+            console.log(data);
+            for (let key in data) {
+              writeData("posts", data[key]);
+            }
+          });
         });
+        return response;
       })
     );
   } else if (isInArray(event.request.url, STATIC_FILES)) {

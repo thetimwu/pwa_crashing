@@ -60,32 +60,42 @@ function createCard() {
   sharedMomentsArea.appendChild(cardWrapper);
 }
 
-let url = "https://httpbin.org/get";
+let url = "https://jsonplaceholder.typicode.com/posts";
 let networkDataReceived = false;
 
-if (caches in window) {
-  caches
-    .match(url)
-    .then((response) => {
-      if (response) {
-        return response.json();
-      }
-    })
-    .then((data) => {
-      console.log("From cache ", data);
-      if (!networkDataReceived) {
-        clearCard();
-        createCard();
-      }
-    });
-}
+// if (caches in window) {
+//   caches
+//     .match(url)
+//     .then((response) => {
+//       if (response) {
+//         return response.json();
+//       }
+//     })
+//     .then((data) => {
+//       console.log("From cache ", data);
+//       if (!networkDataReceived) {
+//         //clearCard();
+//         //createCard();
+//       }
+//     });
+// }
 
-fetch("https://httpbin.org/get")
+fetch(url)
   .then(function (res) {
     return res.json();
   })
   .then(function (data) {
     networkDataReceived = true;
     console.log("From web ", data);
-    createCard();
+    //createCard();
   });
+
+if (window.indexedDB) {
+  console.log("inside indexdb process");
+  readAllData("posts").then((data) => {
+    console.log(networkDataReceived);
+    if (!networkDataReceived) {
+      console.log("read from idb: ", data);
+    }
+  });
+}
