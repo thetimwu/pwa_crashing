@@ -167,3 +167,25 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+self.addEventListener("sync", (event) => {
+  console.log("[service worker] background syncing", event);
+  if (event.tag === "sync-new-posts") {
+    event.waitUntil(
+      readAllData("sync-posts")
+        .then((posts) => {
+          console.log("sync-posts from indexedDB..", posts);
+          for (let p of posts) {
+            console.log("call fetch POST...", p);
+          }
+        })
+        .then(() => {
+          console.log("res from fetch POST");
+          deleteItemFromData("sync-posts", p.id); //isn't working correctly!
+        })
+        .catch((err) => {
+          console.log(err);
+        })
+    );
+  }
+});

@@ -4,6 +4,9 @@ var closeCreatePostModalButton = document.querySelector(
   "#close-create-post-modal-btn"
 );
 var sharedMomentsArea = document.querySelector("#shared-moments");
+const form = document.querySelector("form");
+const titleInput = document.querySelector("#title");
+const locationInput = document.querySelector("#location");
 
 function openCreatePostModal() {
   createPostArea.style.display = "block";
@@ -11,7 +14,7 @@ function openCreatePostModal() {
     deferredPrompt.prompt();
 
     deferredPrompt.userChoice.then(function (choiceResult) {
-      console.log(choiceResult.outcome);
+      //console.log(choiceResult.outcome);
 
       if (choiceResult.outcome === "dismissed") {
         console.log("User cancelled installation");
@@ -91,7 +94,6 @@ fetch(url)
   });
 
 if (window.indexedDB) {
-  console.log("inside indexdb process");
   readAllData("posts").then((data) => {
     console.log(networkDataReceived);
     if (!networkDataReceived) {
@@ -99,3 +101,39 @@ if (window.indexedDB) {
     }
   });
 }
+
+form.addEventListener("click", (event) => {
+  event.preventDefault();
+
+  if (titleInput.value.trim() === "" || locationInput.value.trim() === "") {
+    alert("please enter valid data!");
+    return;
+  }
+
+  closeCreatePostModal();
+
+  if ("serviceWorker" in navigator && "SyncManager" in window) {
+    navigator.serviceWorker.ready.then((sw) => {
+      const post = {
+        id: new Date().toISOString(),
+        title: titleInput.value,
+        location: locationInput.value,
+      };
+
+      writeData("sync-posts", post)
+        .then(() => {
+          return sw.sync.register("sync-new-posts");
+        })
+        .then(() => {
+          const snackbarContainer = document.querySelector(
+            "#confirmation-toast"
+          );
+          const data = { message: "Your Post was saved for syncing" };
+          snackbarContainer.MaterialSnackbar.showSnackbar(data);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    });
+  }
+});
