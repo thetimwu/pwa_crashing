@@ -189,3 +189,50 @@ self.addEventListener("sync", (event) => {
     );
   }
 });
+
+// listen to notification click
+self.addEventListener("notificationclick", (event) => {
+  const notification = event.notification;
+  const action = event.action;
+
+  if (action === "confirm") {
+    console.log("confirm was shosen");
+    notification.close();
+  } else {
+    console.log(action);
+    event.waitUntil(
+      clients.matchAll().then((clis) => {
+        const client = clis.find((c) => c.visibilityState === "visible");
+        if (client !== undefined) {
+          client.navigate(notification.data.url);
+          client.focus();
+        } else {
+          clients.openWindow(notification.data.url);
+        }
+        notification.close();
+      })
+    );
+  }
+});
+
+self.addEventListener("notificationclose", (event) => {
+  console.log("Notification was close", event);
+});
+
+self.addEventListener("push", (event) => {
+  let data;
+  if (event.data) {
+    data = JSON.parse(event.data.text());
+  }
+
+  const options = {
+    body: data.content,
+    icon: "/src/images/icons/app-icon-96x96.png",
+    badge: "/src/images/icons/app-icon-96x96.png",
+    data: {
+      url: data.openUrl, // from backend server
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
